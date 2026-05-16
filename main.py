@@ -1,7 +1,25 @@
-from fastapi import FastAPI, HTTPException, Path, Query
-from typing import Optional
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field, EmailStr
+from datetime import date, datetime
+from typing import Optional, List
 
-app = FastAPI()
+app = FastAPI(
+    title="API PROYECTO E.V CHARGE ",
+    description="Sistema  de cargadores electricos en Bogota",
+    version="1.0"
+)
+
+# 1 MODELO DE CARROS
+class carros(BaseModel):
+    id: int = Field(gt=0, description="ID del carro, debe ser mayor a 0")
+    placa: str = Field(min_length=5, max_length=10, description="Placa del carro (ej: ABC-123)")
+    modelo: str = Field(min_length=1, max_length=50, description="Modelo del carro (ej: Toyota Corolla 2024)")
+    tipo_cargador: str = Field(min_length=1, description="Tipo de cargador (eléctrico, híbrido, gasolina, diésel)")
+    estado: str = Field(min_length=1, description="Estado del carro (cargando, descargando, disponible, mantenimiento)")
+    capacidad: float = Field(gt=0, description="Capacidad de carga en kilogramos, debe ser mayor a 0")
+    
+    
+
 
 # --- BASES DE DATOS SIMULADAS ---
 db_cargadores = [
@@ -35,16 +53,30 @@ def obtener_cargador(
 
 # --- 2. ENTIDAD: CARROS ---
 # Path Params: placa | Query Params: estado, marca
-@app.get("/carros/{placa}")
-def obtener_carro(
-    placa: str = Path(..., min_length=6, max_length=6),
-    estado: Optional[str] = Query(None),
-    marca: Optional[str] = Query(None, min_length=3)
-):
-    for car in db_carros:
-        if car["placa"].upper() == placa.upper():
-            return car
-    raise HTTPException(status_code=404, detail="Vehículo no registrado")
+@app.post("/carros", status_code=201)
+def crear_carro(carro: Carro):
+    """
+    Registra un nuevo carro en el sistema.
+    """
+    global contador_id
+    
+    # Verificar que la placa no exista ya
+    for c in carros_db:
+        if c["placa"] == carro.placa:
+            raise HTTPException(status_code=400, detail="Ya existe un carro con esta placa")
+    
+    # Crear el nuevo carro con ID automático
+    nuevo_carro = carro.dict()
+    nuevo_carro["id"] = contador_id
+    contador_id += 1
+    
+    carros_db.append(nuevo_carro)
+    
+    return {
+        "mensaje": "Carro registrado exitosamente",
+        "carro": nuevo_carro,
+        "status": "success"
+    }
 
 # --- 3. ENTIDAD: USUARIOS ---
 # Path Params: id | Query Params: nombre, tipo
